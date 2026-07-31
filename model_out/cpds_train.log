@@ -1,0 +1,25 @@
+Shape: (3600, 9) | classes: 72
+
+=== Logistic Regression ===
+Best params: {'C': 5.0}
+CV best macro-F1: 0.9050
+Test macro-F1:    0.9109
+Test accuracy:    0.9139
+Fit time: 4.6s
+
+=== Random Forest ===
+Best params: {'max_depth': None, 'n_estimators': 300}
+CV best macro-F1: 0.9714
+Test macro-F1:    0.9847
+Test accuracy:    0.9847
+Fit time: 20.3s
+
+=== XGBoost ===
+Best params: {'max_depth': 4, 'n_estimators': 200}
+CV best macro-F1: 0.9703
+Test macro-F1:    0.9834
+Test accuracy:    0.9833
+Fit time: 54.4s
+
+
+>>> WINNER on CPDS dataset: Random Forest (test macro-F1 = 0.9847) <<<

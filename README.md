@@ -1,0 +1,137 @@
+# CareerLens
+
+AI-powered career-fit predictor. Given a resume or a quick self-assessment,
+predicts the closest-matching career out of 72 options using a Random
+Forest classifier trained on multiple-intelligence trait scores.
+
+## What's in here
+
+```
+careerlens/
+├── data/                    raw + cleaned training datasets
+├── training/                the 5 manual training scripts, run in order
+├── model_out/                trained model artifacts (.joblib) + logs
+├── backend/                 FastAPI service that serves predictions
+│   └── app/
+│       ├── main.py              API routes
+│       ├── feature_extraction.py  resume -> trait score heuristic
+│       └── resume_reader.py       PDF/DOCX/TXT text extraction
+└── frontend/                 React (Vite) UI
+    └── src/
+        ├── App.jsx               main screen (upload / self-assessment / result)
+        ├── ApertureMark.jsx      the lens-aperture logo/loading mark
+        └── App.css
+```
+
+## Data decisions — why only one dataset made it in
+
+Four datasets were evaluated:
+
+| Dataset | Verdict |
+|---|---|
+| CPP (career_path_in_all_field.csv) | ❌ All three models (Logistic Regression, Random Forest, XGBoost) scored at random-chance level (~1%). The labels don't correlate with the features — likely randomly generated. |
+| CPDS (Dataset Project 404.xlsx) | ✅ **Used.** 3,600 rows, 72 balanced careers, 8 multiple-intelligence features. Random Forest hit 98.5% macro-F1 on held-out test data. |
+| CPD (Data_final.csv) | ❌ 105 rows, 104 unique career labels — ~1 sample per class, mathematically impossible to generalize from. |
+| AICPT (personality.csv) | ❌ 2,527 rows, every single row has a unique career title — zero repeated classes. |
+
+## Rerunning the training pipeline yourself (manual, step by step)
+
+```bash
+cd training
+python3 01_explore_cpp.py        # inspect shape, dtypes, missing values, class balance
+python3 02_preprocess_cpp.py     # stratified split + scaling (CPP — kept for reference; unusable data)
+python3 03_train_cpp.py          # tune & compare LR/RF/XGBoost on CPP (confirms no signal)
+python3 04_train_cpds.py         # tune & compare LR/RF/XGBoost on CPDS (the real training run)
+python3 05_export_final.py       # retrain the winning config on 100% of CPDS, export final model
+```
+
+Key ideas to remember for next time:
+- **Explore before modeling.** Check class balance first — it tells you upfront whether a real train/test split is even possible.
+- **Split before you fit any transformer.** Fitting a scaler/encoder on the full dataset then splitting leaks test-set information into training.
+- **Stratify your split** on the target when class sizes are small, so no class gets starved in the test set.
+- **Score with macro F1, not accuracy**, when you care about every class equally rather than just the frequent ones.
+- **GridSearchCV** tunes hyperparameters via cross-validation on the training set only — never touches the test set until final evaluation.
+- **Retrain the winner on 100% of the data** for the deployed model once you've picked a winner via the held-out test set — the test split was only for comparison, not for the shipped model.
+- **A too-good score (98%+) deserves suspicion, not celebration** — check whether the dataset is realistically noisy or suspiciously clean/synthetic before trusting it blindly.
+
+## Running the backend
+
+```bash
+cd backend
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+```
+
+Endpoints:
+- `GET /api/health` — sanity check
+- `POST /api/predict-resume` — multipart file upload (pdf/docx/txt) → top prediction + top 5
+- `POST /api/predict-scores` — JSON body with 8 trait scores (0–20 each) → top prediction + top 5
+
+## Running the frontend
+
+```bash
+cd frontend
+npm install
+npm run dev          # local dev server, http://localhost:5173
+npm run build         # production build -> dist/
+```
+
+Set `VITE_API_BASE` (e.g. in a `.env` file) to point at your deployed
+backend URL before building for production. Defaults to
+`http://localhost:8000` for local dev.
+
+## Deploying
+
+- **Backend**: any Python host that runs FastAPI/uvicorn — Render, Railway,
+  Fly.io, or a plain VM. Make sure `model_out/careerlens_final_model.joblib`
+  ships alongside the backend code (update `MODEL_PATH` in `app/main.py` if
+  you move it).
+- **Frontend**: `npm run build` produces a static `dist/` folder — deploy
+  to Vercel, Netlify, or any static host. Set `VITE_API_BASE` to your
+  live backend URL first.
+
+## Second model — tech-role skill classifier (added later)
+
+The trait model above only ever sees 8 broad psychometric scores. It has
+no concept of "Python" or "Kubernetes" — it can only tell that someone
+scores high on "Logical-Mathematical", which is equally true of an
+accountant, a physicist, and a software engineer. That's a structural
+ceiling, not something more tuning fixes.
+
+`careerlens_tech_model.joblib` is a second, separate model that runs
+**only on the resume-upload path** (there's no text for the 8-question
+self-assessment to feed it). It's a TF-IDF + LinearSVC classifier
+trained directly on resume text → job category, using a real labeled
+dataset:
+
+- **Source**: "UpdatedResumeDataSet" (public resume-classification
+  dataset, originally circulated via Kaggle; mirrored here from
+  [DhyanilMehta/Resume-Screening-ML-Project](https://github.com/DhyanilMehta/Resume-Screening-ML-Project)).
+- **962 resumes, 25 categories**, including Data Science, DevOps
+  Engineer, Python Developer, Java Developer, Network Security Engineer,
+  ETL Developer, Hadoop, Blockchain, SAP Developer, DotNet Developer,
+  plus non-tech categories (HR, Sales, Advocate, etc.) carried along
+  since they were in the source data.
+- **Held-out macro-F1: 99.45%.** Be skeptical of this number, same as
+  the note above about the trait model — this specific public dataset is
+  known to contain many near-duplicate, template-derived resumes within
+  each category, which inflates held-out scores. Treat it as "very
+  strong on resumes similar in style to the training set," not as a
+  guarantee on arbitrary real-world resumes.
+- Retrain with `python3 training/08_train_tech_model.py`.
+
+The API returns both: `top_5` (trait model, all 72 careers) and
+`tech_top_5` (tech model, 25 categories, `null` if that bundle isn't
+present). They are NOT merged into one score — shown as two separate,
+clearly-labeled opinions, since they're different models trained on
+different data with different meanings behind their confidence numbers.
+
+## Known limitation — be upfront about this
+
+The resume → trait-score mapping in `feature_extraction.py` is a
+transparent keyword heuristic, not a real psychometric test — there's no
+way to derive true multiple-intelligence scores from resume text alone.
+It's calibrated to produce realistic, in-distribution score vectors (not
+maxed-out single dimensions), but predictions from resumes will always be
+softer signal than the quick self-assessment path, which lets the person
+score themselves directly on the same 8 traits the model was trained on.

@@ -1,0 +1,53 @@
+:root {
+  --ink: #14171f;
+  --ink-2: #1b1f2a;
+  --ink-3: #232838;
+  --hairline: #2c3142;
+  --paper: #f2efe9;
+  --paper-dim: #b8bcc8;
+  --slate: #8b93a6;
+  --amber: #e8a33d;
+  --amber-dim: #7a5a2c;
+  --green: #6fcf97;
+
+  --serif: "Fraunces", Georgia, serif;
+  --sans: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  --mono: "JetBrains Mono", monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

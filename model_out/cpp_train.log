@@ -1,0 +1,24 @@
+
+=== Logistic Regression ===
+Best params: {'C': 1.0}
+CV best macro-F1 (train folds): 0.0144
+Held-out test macro-F1:         0.0091
+Held-out test accuracy:         0.0100
+Fit time: 7.3s
+
+=== Random Forest ===
+Best params: {'max_depth': None, 'n_estimators': 200}
+CV best macro-F1 (train folds): 0.0139
+Held-out test macro-F1:         0.0126
+Held-out test accuracy:         0.0128
+Fit time: 115.1s
+
+=== XGBoost ===
+Best params: {'max_depth': 4, 'n_estimators': 200}
+CV best macro-F1 (train folds): 0.0125
+Held-out test macro-F1:         0.0056
+Held-out test accuracy:         0.0061
+Fit time: 231.5s
+
+
+>>> WINNER on CPP dataset: Random Forest (test macro-F1 = 0.0126) <<<
