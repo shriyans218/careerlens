@@ -7,12 +7,32 @@
 .topbar {
   padding: 24px 32px;
   border-bottom: 1px solid var(--hairline);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .brand {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.dash-link {
+  background: transparent;
+  border: 1px solid var(--hairline);
+  color: var(--paper-dim);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.dash-link:hover {
+  border-color: var(--amber);
+  color: var(--amber);
 }
 
 .wordmark {
