@@ -1,6 +1,8 @@
 import React, { useState, useCallback } from "react";
 import ApertureMark from "./ApertureMark.jsx";
+import Dashboard from "./Dashboard.jsx";
 import "./App.css";
+import "./Dashboard.css";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
 
@@ -51,6 +53,7 @@ function HighlightedResumeText({ text, entities }) {
 }
 
 export default function App() {
+  const [view, setView] = useState("app"); // "app" | "dashboard"
   const [mode, setMode] = useState("resume"); // "resume" | "assessment"
   const [file, setFile] = useState(null);
   const [dragActive, setDragActive] = useState(false);
@@ -115,6 +118,10 @@ export default function App() {
     setErrorMsg("");
   }
 
+  if (view === "dashboard") {
+    return <Dashboard onBack={() => setView("app")} />;
+  }
+
   return (
     <div className="page">
       <header className="topbar">
@@ -122,6 +129,9 @@ export default function App() {
           <ApertureMark size={30} />
           <span className="wordmark">CareerLens</span>
         </div>
+        <button className="dash-link" onClick={() => setView("dashboard")}>
+          Analytics Dashboard
+        </button>
       </header>
 
       <main className={status === "done" ? "hero hero-wide" : "hero"}>
