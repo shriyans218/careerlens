@@ -62,45 +62,6 @@ function ModelComparisonChart({ models }) {
   );
 }
 
-function PerModelBreakdown({ breakdown }) {
-  // Dashboard-only: each sub-model's own independent call on THIS
-  // resume, rendered as a 0-1 bar chart (same shape as
-  // ModelComparisonChart) so it reads as "accuracy for this resume"
-  // per model. Does not affect the ensemble's actual
-  // top_prediction/top_5 shown elsewhere.
-  const best = Math.max(...breakdown.map((m) => m.confidence));
-  return (
-    <div className="mc-chart">
-      <div className="mc-gridlines">
-        {[1, 0.8, 0.6, 0.4, 0.2, 0].map((v) => (
-          <div className="mc-gridline" key={v}>
-            <span className="mc-gridline-label">{v.toFixed(1)}</span>
-          </div>
-        ))}
-      </div>
-      <div className="mc-bars">
-        {breakdown.map((m) => {
-          const isBest = m.confidence === best;
-          return (
-            <div className="mc-bar-col" key={m.model}>
-              <span className={isBest ? "mc-value mc-value-best" : "mc-value"}>
-                {m.confidence.toFixed(3)}
-              </span>
-              <div className="mc-bar-track">
-                <div
-                  className={isBest ? "mc-bar-fill mc-bar-fill-best" : "mc-bar-fill"}
-                  style={{ height: `${m.confidence * 100}%` }}
-                />
-              </div>
-              <span className="mc-bar-name">{m.model}</span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 function TSNEScatter({ points, clusters, userPoint }) {
   const width = 520;
   const height = 340;
@@ -274,22 +235,10 @@ export default function Dashboard({ onBack, result, apiBase }) {
 
           <section className="dash-card dash-card-wide">
             <div className="dash-card-head">
-              <h3>
-                {result?.model_breakdown?.length > 0
-                  ? "Per-Model Prediction on Your Resume"
-                  : "Model Comparison – Macro F1-Score"}
-              </h3>
-              <span className="dash-badge">
-                {result?.model_breakdown?.length > 0
-                  ? "each model's own independent call on your resume"
-                  : "from actual grid-search evaluation"}
-              </span>
+              <h3>Model Comparison – Macro F1-Score</h3>
+              <span className="dash-badge">from actual grid-search evaluation</span>
             </div>
-            {result?.model_breakdown?.length > 0 ? (
-              <PerModelBreakdown breakdown={result.model_breakdown} />
-            ) : (
-              <ModelComparisonChart models={data.model_comparison} />
-            )}
+            <ModelComparisonChart models={data.model_comparison} />
           </section>
 
           {userTop5 && (
