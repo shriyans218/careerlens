@@ -29,61 +29,36 @@ const CLUSTER_COLORS = {
 };
 
 function ModelComparisonChart({ models }) {
-  const width = 560;
-  const height = 260;
-  const padL = 40;
-  const padB = 32;
-  const padT = 16;
-  const chartW = width - padL - 20;
-  const chartH = height - padT - padB;
-  const barGap = 40;
-  const barW = (chartW - barGap * (models.length - 1)) / models.length;
-  const maxVal = 1;
   const best = Math.max(...models.map((m) => m.macro_f1));
-
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} width="100%" role="img" aria-label="Model comparison macro F1 score">
-      {[0, 0.2, 0.4, 0.6, 0.8, 1].map((v) => {
-        const y = padT + chartH - (v / maxVal) * chartH;
-        return (
-          <g key={v}>
-            <line x1={padL} x2={width - 20} y1={y} y2={y} stroke="var(--hairline)" strokeWidth="1" />
-            <text x={padL - 8} y={y + 4} textAnchor="end" fontSize="11" fill="var(--slate)" fontFamily="var(--mono)">
-              {v.toFixed(1)}
-            </text>
-          </g>
-        );
-      })}
-
-      {models.map((m, i) => {
-        const x = padL + i * (barW + barGap);
-        const barH = (m.macro_f1 / maxVal) * chartH;
-        const y = padT + chartH - barH;
-        const isBest = m.macro_f1 === best;
-        return (
-          <g key={m.name}>
-            {isBest && (
-              <rect x={x - 8} y={y - 8} width={barW + 16} height={barH + 16} rx="10" fill="var(--amber)" opacity="0.15" />
-            )}
-            <rect x={x} y={y} width={barW} height={barH} rx="4" fill={isBest ? "var(--amber)" : "rgba(224,168,76,0.35)"} />
-            <text
-              x={x + barW / 2}
-              y={y - 12}
-              textAnchor="middle"
-              fontSize="13"
-              fontWeight="600"
-              fill={isBest ? "var(--amber)" : "var(--paper-dim)"}
-              fontFamily="var(--mono)"
-            >
-              {m.macro_f1.toFixed(3)}
-            </text>
-            <text x={x + barW / 2} y={height - padB + 18} textAnchor="middle" fontSize="12" fill="var(--paper-dim)">
-              {m.name}
-            </text>
-          </g>
-        );
-      })}
-    </svg>
+    <div className="mc-chart">
+      <div className="mc-gridlines">
+        {[1, 0.8, 0.6, 0.4, 0.2, 0].map((v) => (
+          <div className="mc-gridline" key={v}>
+            <span className="mc-gridline-label">{v.toFixed(1)}</span>
+          </div>
+        ))}
+      </div>
+      <div className="mc-bars">
+        {models.map((m) => {
+          const isBest = m.macro_f1 === best;
+          return (
+            <div className="mc-bar-col" key={m.name}>
+              <span className={isBest ? "mc-value mc-value-best" : "mc-value"}>
+                {m.macro_f1.toFixed(3)}
+              </span>
+              <div className="mc-bar-track">
+                <div
+                  className={isBest ? "mc-bar-fill mc-bar-fill-best" : "mc-bar-fill"}
+                  style={{ height: `${m.macro_f1 * 100}%` }}
+                />
+              </div>
+              <span className="mc-bar-name">{m.name}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
