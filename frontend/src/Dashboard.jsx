@@ -62,6 +62,32 @@ function ModelComparisonChart({ models }) {
   );
 }
 
+function PerModelBreakdown({ breakdown }) {
+  // Dashboard-only: each sub-model's own independent call on THIS
+  // resume. Does not affect the ensemble's actual top_prediction/top_5
+  // shown elsewhere -- purely informational per-model comparison.
+  return (
+    <table className="dash-table">
+      <thead>
+        <tr>
+          <th>Model</th>
+          <th>Predicted Career</th>
+          <th>Confidence</th>
+        </tr>
+      </thead>
+      <tbody>
+        {breakdown.map((r) => (
+          <tr key={r.model}>
+            <td>{r.model}</td>
+            <td>{r.career}</td>
+            <td className="dash-conf">{Math.round(r.confidence * 100)}%</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 function TSNEScatter({ points, clusters, userPoint }) {
   const width = 520;
   const height = 340;
@@ -235,10 +261,22 @@ export default function Dashboard({ onBack, result, apiBase }) {
 
           <section className="dash-card dash-card-wide">
             <div className="dash-card-head">
-              <h3>Model Comparison – Macro F1-Score</h3>
-              <span className="dash-badge">from actual grid-search evaluation</span>
+              <h3>
+                {result?.model_breakdown?.length > 0
+                  ? "Per-Model Prediction on Your Resume"
+                  : "Model Comparison – Macro F1-Score"}
+              </h3>
+              <span className="dash-badge">
+                {result?.model_breakdown?.length > 0
+                  ? "each model's own independent call on your resume"
+                  : "from actual grid-search evaluation"}
+              </span>
             </div>
-            <ModelComparisonChart models={data.model_comparison} />
+            {result?.model_breakdown?.length > 0 ? (
+              <PerModelBreakdown breakdown={result.model_breakdown} />
+            ) : (
+              <ModelComparisonChart models={data.model_comparison} />
+            )}
           </section>
 
           {userTop5 && (
