@@ -118,7 +118,7 @@ export default function App() {
     setErrorMsg("");
   }
 
-  if (view === "dashboard") {
+  if (view === "dashboard" && result) {
     return <Dashboard onBack={() => setView("app")} result={result} apiBase={API_BASE} />;
   }
 
