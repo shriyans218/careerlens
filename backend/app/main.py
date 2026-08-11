@@ -5,6 +5,7 @@ CareerLens API — serves career predictions from either:
 
 Run with: uvicorn app.main:app --reload --port 8000
 """
+import json
 import os
 from pathlib import Path
 
@@ -35,6 +36,20 @@ bundle = joblib.load(MODEL_PATH)
 model = bundle["model"]
 scaler = bundle["scaler"]
 label_encoder = bundle["label_encoder"]
+
+# Static dashboard data: real logged model-comparison macro-F1 scores
+# and a real t-SNE projection of the training set, produced offline by
+# training/09_export_dashboard_data.py. Optional -- dashboard endpoints
+# 404 gracefully if it hasn't been generated yet.
+DASHBOARD_DATA_PATH = PROJECT_ROOT / "model_out" / "dashboard_data.json"
+DASHBOARD_PROJECTION_PATH = PROJECT_ROOT / "model_out" / "dashboard_projection.joblib"
+dashboard_data = None
+dashboard_projection = None
+if DASHBOARD_DATA_PATH.is_file():
+    with open(DASHBOARD_DATA_PATH) as f:
+        dashboard_data = json.load(f)
+if DASHBOARD_PROJECTION_PATH.is_file():
+    dashboard_projection = joblib.load(DASHBOARD_PROJECTION_PATH)
 
 # Second model: trained directly on resume text -> tech job category.
 # Fixes what the trait model structurally can't see (specific skills like
@@ -74,6 +89,37 @@ def health():
     }
 
 
+@app.get("/api/dashboard")
+def get_dashboard_data():
+    """Real, precomputed analytics: actual logged model-comparison
+    macro-F1 scores and a real t-SNE projection of the training set.
+    Nothing here is invented per-request."""
+    if dashboard_data is None:
+        raise HTTPException(
+            404,
+            "Dashboard data not generated yet. Run "
+            "training/09_export_dashboard_data.py to produce "
+            "model_out/dashboard_data.json.",
+        )
+    return dashboard_data
+
+
+def project_resume_point(feature_vector: list):
+    """Projects this resume's real 8-dim trait vector into the same 2D
+    space as the training-set t-SNE plot, using the PCA(2) fit on the
+    same scaled features (t-SNE itself has no transform() for new
+    points). Returns None if the projection model wasn't exported."""
+    if dashboard_projection is None:
+        return None
+    proj_scaler = dashboard_projection["scaler"]
+    pca = dashboard_projection["pca"]
+    X = np.array(feature_vector).reshape(1, -1)
+    X_scaled = proj_scaler.transform(X)
+    coords = pca.transform(X_scaled)[0]
+    return {"x": round(float(coords[0]), 3), "y": round(float(coords[1]), 3)}
+
+
+
 @app.post("/api/predict-resume")
 async def predict_resume(file: UploadFile = File(...)):
     file_bytes = await file.read()
@@ -86,6 +132,7 @@ async def predict_resume(file: UploadFile = File(...)):
     predictions = predict_top_k(vector, k=5)
     tech_predictions = predict_tech_roles(tech_bundle, text, k=5)
     parsed_entities = parse_resume_entities(text)
+    resume_point = project_resume_point(vector)
 
     return {
         "top_prediction": predictions[0]["career"],
@@ -93,6 +140,7 @@ async def predict_resume(file: UploadFile = File(...)):
         "tech_top_5": tech_predictions,  # null if tech model isn't bundled
         "resume_text": text,             # additive: powers the parsing/highlight view
         "parsed_entities": parsed_entities,  # additive: [{start,end,label,text}]
+        "resume_point": resume_point,    # additive: {x,y} on the dashboard's t-SNE map, or null
     }
 
 
@@ -115,4 +163,5 @@ def predict_scores(scores: ManualScores):
         scores.Interpersonal, scores.Intrapersonal, scores.Naturalist,
     ]
     predictions = predict_top_k(ordered, k=5)
-    return {"top_prediction": predictions[0]["career"], "top_5": predictions}
+    point = project_resume_point(ordered)
+    return {"top_prediction": predictions[0]["career"], "top_5": predictions, "resume_point": point}
