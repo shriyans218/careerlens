@@ -129,6 +129,11 @@ export default function App() {
           <ApertureMark size={30} />
           <span className="wordmark">CareerLens</span>
         </div>
+        {status === "done" && result && (
+          <button className="dash-link" onClick={() => setView("dashboard")}>
+            View Analytics Dashboard
+          </button>
+        )}
       </header>
 
       <main className={status === "done" ? "hero hero-wide" : "hero"}>
@@ -273,14 +278,9 @@ export default function App() {
               </div>
             </div>
 
-            <div className="result-actions">
-              <button className="secondary-btn" onClick={reset}>
-                Try again
-              </button>
-              <button className="dash-link" onClick={() => setView("dashboard")}>
-                View Analytics Dashboard
-              </button>
-            </div>
+            <button className="secondary-btn" onClick={reset}>
+              Try again
+            </button>
           </div>
         )}
       </main>
