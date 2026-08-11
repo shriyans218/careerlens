@@ -201,7 +201,7 @@ export default function Dashboard({ onBack, result, apiBase }) {
           <ApertureMark size={26} />
           <span className="wordmark">CareerLens</span>
         </div>
-        <div className="dash-title">CareerLens Analytics Dashboard</div>
+        <div className="dash-title">Analytics Dashboard</div>
         {onBack && (
           <button className="secondary-btn dash-back" onClick={onBack}>
             ← Back
