@@ -79,6 +79,35 @@ def predict_top_k(feature_vector: list, k: int = 5):
     ]
 
 
+_MODEL_DISPLAY_NAMES = {
+    "rf": "Random Forest",
+    "xgb": "XGBoost",
+    "logreg": "Logistic Regression",
+}
+
+
+def predict_per_model(feature_vector: list):
+    """Dashboard-only: ask each sub-model inside the deployed ensemble
+    for its own independent top prediction + confidence on THIS resume.
+    Does not affect predict_top_k / the ensemble's actual result -- the
+    ensemble's soft-voted output is still what's returned as
+    top_prediction / top_5 everywhere else."""
+    if not hasattr(model, "named_estimators_"):
+        return None  # deployed model isn't a VotingClassifier bundle
+    X = np.array(feature_vector).reshape(1, -1)
+    X_scaled = scaler.transform(X)
+    breakdown = []
+    for key, est in model.named_estimators_.items():
+        proba = est.predict_proba(X_scaled)[0]
+        top_i = int(np.argmax(proba))
+        breakdown.append({
+            "model": _MODEL_DISPLAY_NAMES.get(key, key),
+            "career": label_encoder.classes_[top_i],
+            "confidence": round(float(proba[top_i]), 4),
+        })
+    return breakdown
+
+
 @app.get("/api/health")
 def health():
     return {
@@ -133,6 +162,7 @@ async def predict_resume(file: UploadFile = File(...)):
     tech_predictions = predict_tech_roles(tech_bundle, text, k=5)
     parsed_entities = parse_resume_entities(text)
     resume_point = project_resume_point(vector)
+    model_breakdown = predict_per_model(vector)  # dashboard-only, doesn't touch predictions above
 
     return {
         "top_prediction": predictions[0]["career"],
@@ -141,6 +171,7 @@ async def predict_resume(file: UploadFile = File(...)):
         "resume_text": text,             # additive: powers the parsing/highlight view
         "parsed_entities": parsed_entities,  # additive: [{start,end,label,text}]
         "resume_point": resume_point,    # additive: {x,y} on the dashboard's t-SNE map, or null
+        "model_breakdown": model_breakdown,  # additive, dashboard-only: [{model, career, confidence}]
     }
 
 
