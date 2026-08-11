@@ -119,7 +119,7 @@ export default function App() {
   }
 
   if (view === "dashboard") {
-    return <Dashboard onBack={() => setView("app")} />;
+    return <Dashboard onBack={() => setView("app")} result={result} apiBase={API_BASE} />;
   }
 
   return (
@@ -129,9 +129,6 @@ export default function App() {
           <ApertureMark size={30} />
           <span className="wordmark">CareerLens</span>
         </div>
-        <button className="dash-link" onClick={() => setView("dashboard")}>
-          Analytics Dashboard
-        </button>
       </header>
 
       <main className={status === "done" ? "hero hero-wide" : "hero"}>
@@ -276,9 +273,14 @@ export default function App() {
               </div>
             </div>
 
-            <button className="secondary-btn" onClick={reset}>
-              Try again
-            </button>
+            <div className="result-actions">
+              <button className="secondary-btn" onClick={reset}>
+                Try again
+              </button>
+              <button className="dash-link" onClick={() => setView("dashboard")}>
+                View Analytics Dashboard
+              </button>
+            </div>
           </div>
         )}
       </main>
