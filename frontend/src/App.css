@@ -35,6 +35,13 @@
   color: var(--amber);
 }
 
+.result-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
 .wordmark {
   font-family: var(--serif);
   font-size: 20px;
