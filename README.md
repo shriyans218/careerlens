@@ -210,4 +210,4 @@ way to derive true multiple-intelligence scores from resume text alone.
 It's calibrated to produce realistic, in-distribution score vectors (not
 maxed-out single dimensions), but predictions from resumes will always be
 softer signal than the quick self-assessment path, which lets the person
-score themselves directly on the same 8 traits the model was trained on.
+score themselves directly on the same 8 traits the model was trained on
