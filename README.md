@@ -42,7 +42,11 @@ python3 01_explore_cpp.py        # inspect shape, dtypes, missing values, class 
 python3 02_preprocess_cpp.py     # stratified split + scaling (CPP — kept for reference; unusable data)
 python3 03_train_cpp.py          # tune & compare LR/RF/XGBoost on CPP (confirms no signal)
 python3 04_train_cpds.py         # tune & compare LR/RF/XGBoost on CPDS (the real training run)
-python3 05_export_final.py       # retrain the winning config on 100% of CPDS, export final model
+python3 05_export_final.py       # retrain the winning single-RF config on 100% of CPDS (baseline, superseded by 07)
+python3 06_train_ensemble.py     # compare a calibrated soft-voting RF+XGBoost+LR ensemble against the RF baseline
+python3 07_export_ensemble.py    # retrain the winning ensemble config on 100% of CPDS — this is the deployed model
+python3 08_train_tech_model.py   # TF-IDF + LinearSVC resume-text classifier (second, separate model — see below)
+python3 09_export_dashboard_data.py  # export real model-comparison scores + t-SNE projection for the analytics dashboard
 ```
 
 Key ideas to remember for next time:
@@ -53,6 +57,36 @@ Key ideas to remember for next time:
 - **GridSearchCV** tunes hyperparameters via cross-validation on the training set only — never touches the test set until final evaluation.
 - **Retrain the winner on 100% of the data** for the deployed model once you've picked a winner via the held-out test set — the test split was only for comparison, not for the shipped model.
 - **A too-good score (98%+) deserves suspicion, not celebration** — check whether the dataset is realistically noisy or suspiciously clean/synthetic before trusting it blindly.
+- **Soft-voting ensembles beat a single model** here: averaging class probabilities across RF + XGBoost + Logistic Regression (`06`/`07`) raised held-out macro-F1 from the single-RF baseline's 97.47% to **98.75%**, while also shrinking the exported bundle from ~22MB to ~11MB by tuning the ensemble smaller/shallower than the first guess.
+
+## Deployed model — soft-voting ensemble (current)
+
+`careerlens_final_model.joblib` (the bundle the backend actually loads)
+is now a **calibrated soft-voting ensemble** of Random Forest + XGBoost
++ Logistic Regression, trained in `06_train_ensemble.py` /
+`07_export_ensemble.py`, not the single Random Forest described in
+earlier versions of this README. Same input features (8 trait scores),
+same output shape (72 careers), so no backend changes were needed —
+only the artifact swapped.
+
+## Analytics dashboard
+
+`09_export_dashboard_data.py` exports `model_out/dashboard_data.json`
+(the real logged macro-F1 for LR/RF/XGBoost from `04`'s grid search)
+and `model_out/dashboard_projection.joblib` (a fitted scaler + t-SNE-
+derived 2D projection of every training example's trait vector,
+grouped into broad career clusters). The backend serves this as:
+
+- `GET /api/dashboard` — static model-comparison scores + the 2D
+  training-set embedding, for charting.
+- On `POST /api/predict-resume`, the response additionally includes
+  `resume_point` (the current resume's own vector projected into that
+  same 2D space) and `model_breakdown` (each ensemble member's
+  individual prediction + confidence, for a per-model comparison view).
+
+Both dashboard fields are additive — regenerating them is optional;
+the core `/api/predict-*` prediction fields work with or without
+`dashboard_data.json`/`dashboard_projection.joblib` present.
 
 ## Running the backend
 
@@ -64,7 +98,8 @@ uvicorn app.main:app --reload --port 8000
 
 Endpoints:
 - `GET /api/health` — sanity check
-- `POST /api/predict-resume` — multipart file upload (pdf/docx/txt) → top prediction + top 5
+- `GET /api/dashboard` — model-comparison scores + 2D training-set embedding (see Analytics dashboard below)
+- `POST /api/predict-resume` — multipart file upload (pdf/docx/txt) → top prediction + top 5, plus `resume_point` and `model_breakdown` for the dashboard
 - `POST /api/predict-scores` — JSON body with 8 trait scores (0–20 each) → top prediction + top 5
 
 ## Running the frontend
