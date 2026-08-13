@@ -30,9 +30,21 @@ Four datasets were evaluated:
 | Dataset | Verdict |
 |---|---|
 | CPP (career_path_in_all_field.csv) | ❌ All three models (Logistic Regression, Random Forest, XGBoost) scored at random-chance level (~1%). The labels don't correlate with the features — likely randomly generated. |
-| CPDS (Dataset Project 404.xlsx) | ✅ **Used.** 3,600 rows, 72 balanced careers, 8 multiple-intelligence features. Random Forest hit 98.5% macro-F1 on held-out test data. |
+| CPDS (Dataset Project 404.xlsx) | ✅ **Used.** 3,600 rows, 72 balanced careers, 8 multiple-intelligence features. |
 | CPD (Data_final.csv) | ❌ 105 rows, 104 unique career labels — ~1 sample per class, mathematically impossible to generalize from. |
 | AICPT (personality.csv) | ❌ 2,527 rows, every single row has a unique career title — zero repeated classes. |
+
+**Model comparison on CPDS (held-out test macro-F1, from the actual `04_train_cpds.py` grid search):**
+
+| Model | Macro F1 |
+|---|---|
+| Logistic Regression | 91.1% |
+| Random Forest | 98.5% |
+| XGBoost | 98.3% |
+
+Random Forest won this initial comparison and was the baseline model
+(`05_export_final.py`). The deployed model was later upgraded to a
+soft-voting ensemble of all three — see "Deployed model" below.
 
 ## Rerunning the training pipeline yourself (manual, step by step)
 
