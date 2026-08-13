@@ -33,9 +33,9 @@ function ModelComparisonChart({ models }) {
   return (
     <div className="mc-chart">
       <div className="mc-gridlines">
-        {[1, 0.8, 0.6, 0.4, 0.2, 0].map((v) => (
+        {[100, 80, 60, 40, 20, 0].map((v) => (
           <div className="mc-gridline" key={v}>
-            <span className="mc-gridline-label">{v.toFixed(1)}</span>
+            <span className="mc-gridline-label">{v}%</span>
           </div>
         ))}
       </div>
@@ -45,7 +45,7 @@ function ModelComparisonChart({ models }) {
           return (
             <div className="mc-bar-col" key={m.name}>
               <span className={isBest ? "mc-value mc-value-best" : "mc-value"}>
-                {m.macro_f1.toFixed(3)}
+                {(m.macro_f1 * 100).toFixed(1)}%
               </span>
               <div className="mc-bar-track">
                 <div
