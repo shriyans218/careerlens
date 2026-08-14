@@ -468,3 +468,53 @@ input[type="range"]::-webkit-slider-thumb {
   padding: 0;
   border-radius: 3px;
 }
+
+.gap-section {
+  width: 100%;
+  margin-top: 24px;
+}
+
+.gap-panel {
+  text-align: left;
+  margin-top: 12px;
+}
+
+.gap-row {
+  margin-bottom: 14px;
+}
+
+.gap-suggestion {
+  font-size: 13px;
+  color: var(--paper-dim);
+  margin: 4px 0 0;
+  padding-left: 2px;
+}
+
+.gap-badge {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: capitalize;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin: 0 8px;
+}
+
+.gap-high {
+  background: #f8d7da;
+  color: #9a2f36;
+}
+
+.gap-medium {
+  background: #fff3cd;
+  color: #8a6d1a;
+}
+
+.gap-on_track {
+  background: #e2e3e5;
+  color: #4a4e52;
+}
+
+.gap-strength {
+  background: #d4edda;
+  color: #256a3a;
+}
