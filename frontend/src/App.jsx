@@ -63,6 +63,8 @@ export default function App() {
   const [status, setStatus] = useState("idle"); // idle | loading | done | error
   const [result, setResult] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
+  const [gapReport, setGapReport] = useState(null);
+  const [gapStatus, setGapStatus] = useState("idle"); // idle | loading | done | error
 
   const handleDrop = useCallback((e) => {
     e.preventDefault();
@@ -116,6 +118,29 @@ export default function App() {
     setResult(null);
     setFile(null);
     setErrorMsg("");
+    setGapReport(null);
+    setGapStatus("idle");
+  }
+
+  async function fetchGapReport() {
+    if (!result) return;
+    // trait_scores comes from /api/predict-resume; the assessment
+    // mode already has the raw scores in `scores` state.
+    const traitScores = result.trait_scores || scores;
+    setGapStatus("loading");
+    try {
+      const res = await fetch(`${API_BASE}/api/gap-report`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...traitScores, career: result.top_prediction }),
+      });
+      if (!res.ok) throw new Error((await res.json()).detail || "Gap report failed");
+      const data = await res.json();
+      setGapReport(data);
+      setGapStatus("done");
+    } catch (err) {
+      setGapStatus("error");
+    }
   }
 
   if (view === "dashboard" && result) {
@@ -276,6 +301,53 @@ export default function App() {
                   </div>
                 )}
               </div>
+            </div>
+
+            <div className="gap-section">
+              {gapStatus === "idle" && (
+                <button className="secondary-btn" onClick={fetchGapReport}>
+                  See skill gap report
+                </button>
+              )}
+
+              {gapStatus === "loading" && (
+                <p className="hint">Analyzing skill gaps…</p>
+              )}
+
+              {gapStatus === "error" && (
+                <p className="error-msg">
+                  Couldn't generate a gap report for this career.
+                </p>
+              )}
+
+              {gapStatus === "done" && gapReport && (
+                <div className="gap-panel">
+                  <p className="parse-panel-title">
+                    Skill Gap Report — {gapReport.career}
+                  </p>
+                  <p className="result-confidence">
+                    Overall readiness: {gapReport.overall_readiness}%
+                  </p>
+                  <div className="result-chart">
+                    {gapReport.gaps.map((g) => (
+                      <div className="gap-row" key={g.trait}>
+                        <div className="bar-row">
+                          <span className="bar-label">{g.trait}</span>
+                          <span className={`gap-badge gap-${g.severity}`}>
+                            {g.severity.replace("_", " ")}
+                          </span>
+                          <span className="bar-pct">
+                            {g.resume_score} / {g.target_score}
+                          </span>
+                        </div>
+                        {g.suggestion && (
+                          <p className="gap-suggestion">{g.suggestion}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <button className="secondary-btn" onClick={reset}>
