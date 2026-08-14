@@ -19,6 +19,7 @@ from .feature_extraction import extract_features, features_to_vector, FEATURE_OR
 from .resume_reader import read_resume
 from .resume_parser import parse_resume_entities
 from .tech_model import predict_tech_roles
+from .gap_analysis import analyze_gap
 
 # backend/app/main.py -> project root is two levels up (careerlens/)
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -196,3 +197,46 @@ def predict_scores(scores: ManualScores):
     predictions = predict_top_k(ordered, k=5)
     point = project_resume_point(ordered)
     return {"top_prediction": predictions[0]["career"], "top_5": predictions, "resume_point": point}
+
+
+class GapReportRequest(BaseModel):
+    """Either pass raw trait `scores`, or let the career come from a
+    prior /api/predict-* call and just pass those same scores back in.
+    `career` defaults to whichever career the scores best match if not given."""
+    Linguistic: float
+    Musical: float
+    Bodily: float
+    Logical_Mathematical: float
+    Spatial_Visualization: float
+    Interpersonal: float
+    Intrapersonal: float
+    Naturalist: float
+    career: str | None = None
+
+
+@app.post("/api/gap-report")
+def gap_report(req: GapReportRequest):
+    scores = {
+        "Linguistic": req.Linguistic,
+        "Musical": req.Musical,
+        "Bodily": req.Bodily,
+        "Logical - Mathematical": req.Logical_Mathematical,
+        "Spatial-Visualization": req.Spatial_Visualization,
+        "Interpersonal": req.Interpersonal,
+        "Intrapersonal": req.Intrapersonal,
+        "Naturalist": req.Naturalist,
+    }
+
+    career = req.career
+    if not career:
+        ordered = features_to_vector(scores)
+        career = predict_top_k(ordered, k=1)[0]["career"]
+
+    report = analyze_gap(scores, career)
+    if report is None:
+        raise HTTPException(
+            404,
+            f"No training profile available for career {career!r} "
+            "(it may only exist in the tech-role model's label space).",
+        )
+    return report
