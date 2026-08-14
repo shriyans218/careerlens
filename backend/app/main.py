@@ -173,6 +173,7 @@ async def predict_resume(file: UploadFile = File(...)):
         "parsed_entities": parsed_entities,  # additive: [{start,end,label,text}]
         "resume_point": resume_point,    # additive: {x,y} on the dashboard's t-SNE map, or null
         "model_breakdown": model_breakdown,  # additive, dashboard-only: [{model, career, confidence}]
+        "trait_scores": scores,          # additive: {trait: score}, powers the skill-gap report
     }
 
 
