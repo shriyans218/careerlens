@@ -122,17 +122,18 @@ export default function App() {
     setGapStatus("idle");
   }
 
-  async function fetchGapReport() {
+  async function fetchGapReport(career) {
     if (!result) return;
     // trait_scores comes from /api/predict-resume; the assessment
     // mode already has the raw scores in `scores` state.
     const traitScores = result.trait_scores || scores;
+    const targetCareer = career || result.top_prediction;
     setGapStatus("loading");
     try {
       const res = await fetch(`${API_BASE}/api/gap-report`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...traitScores, career: result.top_prediction }),
+        body: JSON.stringify({ ...traitScores, career: targetCareer }),
       });
       if (!res.ok) throw new Error((await res.json()).detail || "Gap report failed");
       const data = await res.json();
@@ -305,9 +306,31 @@ export default function App() {
 
             <div className="gap-section">
               {gapStatus === "idle" && (
-                <button className="secondary-btn" onClick={fetchGapReport}>
-                  See skill gap report
-                </button>
+                <div className="gap-choice">
+                  {result.tech_top_5 ? (
+                    <>
+                      <p className="hint">See a skill gap report for:</p>
+                      <div className="gap-choice-buttons">
+                        <button
+                          className="secondary-btn"
+                          onClick={() => fetchGapReport(result.tech_top_5[0].career)}
+                        >
+                          {result.tech_top_5[0].career} (tech role)
+                        </button>
+                        <button
+                          className="secondary-btn"
+                          onClick={() => fetchGapReport(result.top_5[0].career)}
+                        >
+                          {result.top_5[0].career} (broader fit)
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <button className="secondary-btn" onClick={() => fetchGapReport()}>
+                      See skill gap report
+                    </button>
+                  )}
+                </div>
               )}
 
               {gapStatus === "loading" && (
@@ -328,6 +351,11 @@ export default function App() {
                   <p className="result-confidence">
                     Overall readiness: {gapReport.overall_readiness}%
                   </p>
+                  <p className="gap-source-note">
+                    {gapReport.source === "tech_resumes"
+                      ? "Target profile derived from real resumes in this tech category."
+                      : "Target profile derived from trait-survey averages for this career."}
+                  </p>
                   <div className="result-chart">
                     {gapReport.gaps.map((g) => (
                       <div className="gap-row" key={g.trait}>
@@ -346,6 +374,12 @@ export default function App() {
                       </div>
                     ))}
                   </div>
+                  <button
+                    className="secondary-btn"
+                    onClick={() => { setGapStatus("idle"); setGapReport(null); }}
+                  >
+                    Check a different career
+                  </button>
                 </div>
               )}
             </div>
@@ -357,5 +391,6 @@ export default function App() {
         )}
       </main>
     </div>
+
   );
 }
