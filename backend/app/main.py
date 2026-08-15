@@ -13,7 +13,7 @@ import joblib
 import numpy as np
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from .feature_extraction import extract_features, features_to_vector, FEATURE_ORDER
 from .resume_reader import read_resume
@@ -201,18 +201,24 @@ def predict_scores(scores: ManualScores):
 
 
 class GapReportRequest(BaseModel):
-    """Either pass raw trait `scores`, or let the career come from a
-    prior /api/predict-* call and just pass those same scores back in.
+    """Accepts trait scores using the SAME key format extract_features()
+    produces (e.g. "Logical - Mathematical", "Spatial-Visualization"),
+    via field aliases -- this is what the frontend sends back from
+    result.trait_scores after a resume prediction. Also accepts the
+    underscore-safe field names directly (e.g. from the assessment
+    sliders), since populate_by_name is enabled below.
     `career` defaults to whichever career the scores best match if not given."""
     Linguistic: float
     Musical: float
     Bodily: float
-    Logical_Mathematical: float
-    Spatial_Visualization: float
+    Logical_Mathematical: float = Field(alias="Logical - Mathematical")
+    Spatial_Visualization: float = Field(alias="Spatial-Visualization")
     Interpersonal: float
     Intrapersonal: float
     Naturalist: float
     career: str | None = None
+
+    model_config = {"populate_by_name": True}
 
 
 @app.post("/api/gap-report")
@@ -237,7 +243,8 @@ def gap_report(req: GapReportRequest):
     if report is None:
         raise HTTPException(
             404,
-            f"No training profile available for career {career!r} "
-            "(it may only exist in the tech-role model's label space).",
+            f"No target profile available for career {career!r}. "
+            "This can happen if the career name doesn't match either "
+            "the 72-career trait dataset or the tech-role resume dataset.",
         )
     return report
