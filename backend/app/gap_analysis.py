@@ -22,6 +22,7 @@ If a predicted career exists in neither source (typos, or a label that's
 since changed), analyze_gap returns None and the caller should respond
 with a clear "not available" rather than a fabricated report.
 """
+import difflib
 from pathlib import Path
 
 import pandas as pd
@@ -114,6 +115,46 @@ def get_career_profile(career: str):
         return tech[career], "tech_resumes"
 
     return None, None
+
+
+def list_known_careers() -> list:
+    """All career/category names we have a target profile for, from both
+    sources combined and sorted -- powers the free-text role box's
+    autocomplete suggestions on the frontend."""
+    survey = _load_survey_profiles()
+    tech = _load_tech_profiles()
+    return sorted(set(survey.keys()) | set(tech.keys()))
+
+
+def resolve_career_name(query: str):
+    """Resolves a free-text role name (typed by the user into the
+    skill-gap box, e.g. "data scientist" or "Data Scientis") to the
+    closest known career/category name in our data.
+
+    Tries, in order: exact case-insensitive match, then substring match
+    (so "engineer" matches "Software Engineer"), then fuzzy match on
+    edit distance for typos. Returns None if nothing is close enough --
+    callers should treat that as "role not recognized", not guess."""
+    if not query or not query.strip():
+        return None
+
+    names = list_known_careers()
+    query_norm = query.strip().lower()
+
+    for name in names:
+        if name.lower() == query_norm:
+            return name
+
+    substring_matches = [n for n in names if query_norm in n.lower() or n.lower() in query_norm]
+    if substring_matches:
+        return min(substring_matches, key=len)
+
+    lowered = [n.lower() for n in names]
+    close = difflib.get_close_matches(query_norm, lowered, n=1, cutoff=0.5)
+    if close:
+        return names[lowered.index(close[0])]
+
+    return None
 
 
 def analyze_gap(resume_scores: dict, career: str):
