@@ -144,7 +144,11 @@ export default function App() {
       const res = await fetch(`${API_BASE}/api/gap-report`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...traitScores, career: targetCareer }),
+        body: JSON.stringify({
+          ...traitScores,
+          career: targetCareer,
+          resume_text: result.resume_text || "",
+        }),
       });
       if (!res.ok) throw new Error((await res.json()).detail || "Gap report failed");
       const data = await res.json();
@@ -457,6 +461,73 @@ export default function App() {
                       </>
                     );
                   })()}
+
+                  {gapReport.technical_gaps && gapReport.technical_gaps.length > 0 && (() => {
+                    const missingSkills = gapReport.technical_gaps.filter(
+                      (s) => !s.resume_has_it
+                    );
+                    const haveSkills = gapReport.technical_gaps.filter(
+                      (s) => s.resume_has_it
+                    );
+                    return (
+                      <>
+                        <div className="gap-group">
+                          <p className="gap-group-title gap-group-missing">
+                            Missing / underdeveloped technical skills
+                          </p>
+                          {missingSkills.length === 0 && (
+                            <p className="gap-source-note">
+                              No common technical skills for this role are missing from your resume.
+                            </p>
+                          )}
+                          <div className="result-chart">
+                            {missingSkills.map((s) => (
+                              <div className="gap-row" key={s.skill}>
+                                <div className="bar-row">
+                                  <span className="bar-label">{s.skill}</span>
+                                  <span className={`gap-badge gap-${s.severity}`}>
+                                    {s.severity}
+                                  </span>
+                                  <span className="bar-pct">
+                                    {Math.round(s.target_prevalence * 100)}% of {gapReport.career} resumes have it
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="gap-group">
+                          <p className="gap-group-title gap-group-present">
+                            Technical skills you already have
+                          </p>
+                          {haveSkills.length === 0 && (
+                            <p className="gap-source-note">
+                              None of the common skills for this role were detected in your resume yet.
+                            </p>
+                          )}
+                          <div className="result-chart">
+                            {haveSkills.map((s) => (
+                              <div className="gap-row" key={s.skill}>
+                                <div className="bar-row">
+                                  <span className="bar-label">{s.skill}</span>
+                                  <span className="bar-pct">
+                                    {Math.round(s.target_prevalence * 100)}% of {gapReport.career} resumes have it
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
+
+                  {gapReport.technical_gaps === null && (
+                    <p className="gap-source-note">
+                      No technical-skill data available for this role — showing trait-based gaps only.
+                    </p>
+                  )}
 
                   <button
                     className="secondary-btn"
