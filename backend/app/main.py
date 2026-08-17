@@ -19,7 +19,7 @@ from .feature_extraction import extract_features, features_to_vector, FEATURE_OR
 from .resume_reader import read_resume
 from .resume_parser import parse_resume_entities
 from .tech_model import predict_tech_roles
-from .gap_analysis import analyze_gap
+from .gap_analysis import analyze_gap, list_known_careers, resolve_career_name
 
 # backend/app/main.py -> project root is two levels up (careerlens/)
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -200,6 +200,13 @@ def predict_scores(scores: ManualScores):
     return {"top_prediction": predictions[0]["career"], "top_5": predictions, "resume_point": point}
 
 
+@app.get("/api/careers")
+def get_careers():
+    """All career/category names with a target profile available,
+    for the skill-gap box's role-name autocomplete."""
+    return {"careers": list_known_careers()}
+
+
 class GapReportRequest(BaseModel):
     """Accepts trait scores using the SAME key format extract_features()
     produces (e.g. "Logical - Mathematical", "Spatial-Visualization"),
@@ -207,7 +214,12 @@ class GapReportRequest(BaseModel):
     result.trait_scores after a resume prediction. Also accepts the
     underscore-safe field names directly (e.g. from the assessment
     sliders), since populate_by_name is enabled below.
-    `career` defaults to whichever career the scores best match if not given."""
+
+    `career` is the role the user is targeting, entered as free text
+    (e.g. "data scientist") in the skill-gap box -- it's resolved
+    against our known career/category names below, so it doesn't need
+    to be an exact match. Left blank, it defaults to whichever career
+    the scores best predict."""
     Linguistic: float
     Musical: float
     Bodily: float
@@ -234,8 +246,16 @@ def gap_report(req: GapReportRequest):
         "Naturalist": req.Naturalist,
     }
 
-    career = req.career
-    if not career:
+    if req.career and req.career.strip():
+        career = resolve_career_name(req.career)
+        if career is None:
+            raise HTTPException(
+                404,
+                f"Couldn't match {req.career!r} to a known role. Try a "
+                "broader or differently-worded title (e.g. 'Data Scientist' "
+                "instead of a very specific internal job title).",
+            )
+    else:
         ordered = features_to_vector(scores)
         career = predict_top_k(ordered, k=1)[0]["career"]
 
