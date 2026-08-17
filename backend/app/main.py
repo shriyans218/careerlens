@@ -229,6 +229,7 @@ class GapReportRequest(BaseModel):
     Intrapersonal: float
     Naturalist: float
     career: str | None = None
+    resume_text: str | None = None  # optional: enables technical-skill gap analysis
 
     model_config = {"populate_by_name": True}
 
@@ -259,7 +260,7 @@ def gap_report(req: GapReportRequest):
         ordered = features_to_vector(scores)
         career = predict_top_k(ordered, k=1)[0]["career"]
 
-    report = analyze_gap(scores, career)
+    report = analyze_gap(scores, career, resume_text=req.resume_text)
     if report is None:
         raise HTTPException(
             404,
