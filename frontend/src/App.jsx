@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import ApertureMark from "./ApertureMark.jsx";
 import Dashboard from "./Dashboard.jsx";
 import "./App.css";
@@ -65,6 +65,16 @@ export default function App() {
   const [errorMsg, setErrorMsg] = useState("");
   const [gapReport, setGapReport] = useState(null);
   const [gapStatus, setGapStatus] = useState("idle"); // idle | loading | done | error
+  const [roleInput, setRoleInput] = useState("");
+  const [careerOptions, setCareerOptions] = useState([]);
+  const [gapErrorMsg, setGapErrorMsg] = useState("");
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/careers`)
+      .then((res) => (res.ok ? res.json() : { careers: [] }))
+      .then((data) => setCareerOptions(data.careers || []))
+      .catch(() => setCareerOptions([]));
+  }, []);
 
   const handleDrop = useCallback((e) => {
     e.preventDefault();
@@ -120,6 +130,7 @@ export default function App() {
     setErrorMsg("");
     setGapReport(null);
     setGapStatus("idle");
+    setRoleInput("");
   }
 
   async function fetchGapReport(career) {
@@ -127,7 +138,7 @@ export default function App() {
     // trait_scores comes from /api/predict-resume; the assessment
     // mode already has the raw scores in `scores` state.
     const traitScores = result.trait_scores || scores;
-    const targetCareer = career || result.top_prediction;
+    const targetCareer = career || "";
     setGapStatus("loading");
     try {
       const res = await fetch(`${API_BASE}/api/gap-report`, {
@@ -141,6 +152,7 @@ export default function App() {
       setGapStatus("done");
     } catch (err) {
       setGapStatus("error");
+      setGapErrorMsg(err.message || "Couldn't generate a gap report for that role.");
     }
   }
 
@@ -305,41 +317,63 @@ export default function App() {
             </div>
 
             <div className="gap-section">
-              {gapStatus === "idle" && (
-                <div className="gap-choice">
-                  {result.tech_top_5 ? (
-                    <>
-                      <p className="hint">See a skill gap report for:</p>
-                      <div className="gap-choice-buttons">
-                        <button
-                          className="secondary-btn"
-                          onClick={() => fetchGapReport(result.tech_top_5[0].career)}
-                        >
-                          {result.tech_top_5[0].career} (tech role)
-                        </button>
-                        <button
-                          className="secondary-btn"
-                          onClick={() => fetchGapReport(result.top_5[0].career)}
-                        >
-                          {result.top_5[0].career} (broader fit)
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <button className="secondary-btn" onClick={() => fetchGapReport()}>
-                      See skill gap report
+              <div className="gap-role-box">
+                <p className="hint">Skill Gap Analysis</p>
+                <p className="gap-role-subhint">
+                  Enter the role you're aiming for and see which of your
+                  skills match it, and which ones are missing.
+                </p>
+                <form
+                  className="gap-role-form"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!roleInput.trim()) return;
+                    setGapErrorMsg("");
+                    fetchGapReport(roleInput.trim());
+                  }}
+                >
+                  <input
+                    className="gap-role-input"
+                    type="text"
+                    list="gap-career-options"
+                    placeholder="e.g. Data Scientist, UX Designer, Mechanical Engineer…"
+                    value={roleInput}
+                    onChange={(e) => setRoleInput(e.target.value)}
+                  />
+                  <datalist id="gap-career-options">
+                    {careerOptions.map((c) => (
+                      <option key={c} value={c} />
+                    ))}
+                  </datalist>
+                  <button
+                    type="submit"
+                    className="secondary-btn"
+                    disabled={!roleInput.trim() || gapStatus === "loading"}
+                  >
+                    {gapStatus === "loading" ? "Analyzing…" : "Analyze skill gap"}
+                  </button>
+                </form>
+                {result.top_prediction && (
+                  <p className="gap-role-suggestion">
+                    Predicted fit:{" "}
+                    <button
+                      type="button"
+                      className="gap-role-suggestion-btn"
+                      onClick={() => {
+                        setRoleInput(result.top_prediction);
+                        setGapErrorMsg("");
+                        fetchGapReport(result.top_prediction);
+                      }}
+                    >
+                      {result.top_prediction}
                     </button>
-                  )}
-                </div>
-              )}
-
-              {gapStatus === "loading" && (
-                <p className="hint">Analyzing skill gaps…</p>
-              )}
+                  </p>
+                )}
+              </div>
 
               {gapStatus === "error" && (
                 <p className="error-msg">
-                  Couldn't generate a gap report for this career.
+                  {gapErrorMsg || "Couldn't generate a gap report for that role."}
                 </p>
               )}
 
@@ -356,29 +390,83 @@ export default function App() {
                       ? "Target profile derived from real resumes in this tech category."
                       : "Target profile derived from trait-survey averages for this career."}
                   </p>
-                  <div className="result-chart">
-                    {gapReport.gaps.map((g) => (
-                      <div className="gap-row" key={g.trait}>
-                        <div className="bar-row">
-                          <span className="bar-label">{g.trait}</span>
-                          <span className={`gap-badge gap-${g.severity}`}>
-                            {g.severity.replace("_", " ")}
-                          </span>
-                          <span className="bar-pct">
-                            {g.resume_score} / {g.target_score}
-                          </span>
+
+                  {(() => {
+                    const missing = gapReport.gaps.filter(
+                      (g) => g.severity === "high" || g.severity === "medium"
+                    );
+                    const present = gapReport.gaps.filter(
+                      (g) => g.severity === "on_track" || g.severity === "strength"
+                    );
+                    return (
+                      <>
+                        <div className="gap-group">
+                          <p className="gap-group-title gap-group-missing">
+                            Missing / underdeveloped skills
+                          </p>
+                          {missing.length === 0 && (
+                            <p className="gap-source-note">
+                              No significant gaps found — you're well matched on every trait.
+                            </p>
+                          )}
+                          <div className="result-chart">
+                            {missing.map((g) => (
+                              <div className="gap-row" key={g.trait}>
+                                <div className="bar-row">
+                                  <span className="bar-label">{g.trait}</span>
+                                  <span className={`gap-badge gap-${g.severity}`}>
+                                    {g.severity.replace("_", " ")}
+                                  </span>
+                                  <span className="bar-pct">
+                                    {g.resume_score} / {g.target_score}
+                                  </span>
+                                </div>
+                                {g.suggestion && (
+                                  <p className="gap-suggestion">{g.suggestion}</p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                        {g.suggestion && (
-                          <p className="gap-suggestion">{g.suggestion}</p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
+
+                        <div className="gap-group">
+                          <p className="gap-group-title gap-group-present">
+                            Skills you already have
+                          </p>
+                          {present.length === 0 && (
+                            <p className="gap-source-note">
+                              None of the traits for this role are fully covered yet.
+                            </p>
+                          )}
+                          <div className="result-chart">
+                            {present.map((g) => (
+                              <div className="gap-row" key={g.trait}>
+                                <div className="bar-row">
+                                  <span className="bar-label">{g.trait}</span>
+                                  <span className={`gap-badge gap-${g.severity}`}>
+                                    {g.severity.replace("_", " ")}
+                                  </span>
+                                  <span className="bar-pct">
+                                    {g.resume_score} / {g.target_score}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
+
                   <button
                     className="secondary-btn"
-                    onClick={() => { setGapStatus("idle"); setGapReport(null); }}
+                    onClick={() => {
+                      setGapStatus("idle");
+                      setGapReport(null);
+                      setRoleInput("");
+                    }}
                   >
-                    Check a different career
+                    Check a different role
                   </button>
                 </div>
               )}
