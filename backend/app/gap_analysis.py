@@ -28,6 +28,7 @@ from pathlib import Path
 import pandas as pd
 
 from .feature_extraction import FEATURE_ORDER, KEYWORDS, extract_features
+from .resume_parser import SKILL_TERMS, parse_resume_entities
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 CPDS_PATH = PROJECT_ROOT / "data" / "cpds_clean.csv"
@@ -82,6 +83,96 @@ def _load_tech_profiles() -> dict:
     _tech_profiles = profiles
     _tech_sample_counts = counts
     return _tech_profiles
+
+
+# {category: {skill: pct_of_that_category's_resumes_containing_it}} -- built
+# from the same resume_categories.csv used above, but scored on the
+# concrete SKILL_TERMS vocabulary (Python, Docker, React, AWS, ...) from
+# resume_parser.py instead of the 8 broad trait buckets. This is what
+# lets the gap report say "you're missing Docker" instead of only
+# "you're behind on Logical-Mathematical".
+_skill_target_freq = None
+
+
+def _load_skill_target_freq() -> dict:
+    global _skill_target_freq
+    if _skill_target_freq is not None:
+        return _skill_target_freq
+
+    df = pd.read_csv(RESUME_CATEGORIES_PATH)
+    freq = {}
+    for category, group in df.groupby("Category"):
+        resumes = group["Resume"].dropna().astype(str).tolist()
+        if len(resumes) < MIN_CATEGORY_SAMPLES:
+            continue
+        counts = {s: 0 for s in SKILL_TERMS}
+        for text in resumes:
+            found = {
+                e["text"].lower()
+                for e in parse_resume_entities(text)
+                if e["label"] == "SKILL"
+            }
+            for skill in SKILL_TERMS:
+                if skill.lower() in found:
+                    counts[skill] += 1
+        freq[category] = {
+            skill: round(count / len(resumes), 3) for skill, count in counts.items()
+        }
+
+    _skill_target_freq = freq
+    return _skill_target_freq
+
+
+def analyze_technical_gap(resume_text: str, career: str, top_n: int = 12):
+    """Compares specific technical skills (Python, SQL, Docker, React, ...)
+    found in the user's resume against how common each skill is among real
+    resumes in the target category. Returns None if we don't have
+    skill-frequency data for this career (e.g. it's a trait-survey-only
+    career with no matching resume_categories.csv category -- the trait
+    gap report above still covers that case).
+
+    Returns a list of up to top_n entries, sorted so the biggest,
+    most-common-in-target, missing-from-resume gaps come first:
+      [{skill, target_prevalence (0-1), resume_has_it, severity}, ...]
+    """
+    if not resume_text or not resume_text.strip():
+        return None
+
+    freq = _load_skill_target_freq()
+    if career not in freq:
+        return None
+
+    resume_skills = {
+        e["text"].lower()
+        for e in parse_resume_entities(resume_text)
+        if e["label"] == "SKILL"
+    }
+
+    rows = []
+    for skill, prevalence in freq[career].items():
+        if prevalence <= 0:
+            continue  # skill never appears in this category's resumes at all
+        has_it = skill.lower() in resume_skills
+        if has_it:
+            severity = "have"
+        elif prevalence >= 0.4:
+            severity = "high"
+        elif prevalence >= 0.15:
+            severity = "medium"
+        else:
+            severity = "low"
+        rows.append({
+            "skill": skill,
+            "target_prevalence": prevalence,
+            "resume_has_it": has_it,
+            "severity": severity,
+        })
+
+    # Missing skills first (biggest prevalence first), then skills already
+    # present, so the frontend can split into "missing" vs "have" groups
+    # the same way it already does for the trait gaps.
+    rows.sort(key=lambda r: (r["resume_has_it"], -r["target_prevalence"]))
+    return rows[:top_n]
 
 
 # A few representative keywords per trait, reused from feature_extraction's
@@ -157,11 +248,14 @@ def resolve_career_name(query: str):
     return None
 
 
-def analyze_gap(resume_scores: dict, career: str):
+def analyze_gap(resume_scores: dict, career: str, resume_text: str | None = None):
     """
     resume_scores: {trait: score} as produced by feature_extraction.extract_features
     career: target career/category name (usually predictions[0]["career"]
             from either the trait model or the tech model)
+    resume_text: raw resume text, optional. When provided, also runs a
+            concrete technical-skill gap analysis (Python, Docker, SQL,
+            React, ...) alongside the 8-trait gap analysis below.
 
     Returns None if no target profile exists for this career in either
     data source. Otherwise returns:
@@ -171,6 +265,9 @@ def analyze_gap(resume_scores: dict, career: str):
         "overall_readiness": 0-100 float,
         "gaps": [ {trait, resume_score, target_score, gap, severity,
                     suggestion}, ... ]  # sorted, biggest gap first
+        "technical_gaps": [ {skill, target_prevalence, resume_has_it,
+                    severity}, ... ] or None if no resume_text was given
+                    or no skill-frequency data exists for this career
       }
     """
     profile, source = get_career_profile(career)
@@ -220,9 +317,12 @@ def analyze_gap(resume_scores: dict, career: str):
     readiness = round(100 * (1 - total_gap / max_possible_gap), 1)
     readiness = max(0.0, min(100.0, readiness))
 
+    technical_gaps = analyze_technical_gap(resume_text, career) if resume_text else None
+
     return {
         "career": career,
         "source": source,
         "overall_readiness": readiness,
         "gaps": gaps,
+        "technical_gaps": technical_gaps,
     }
