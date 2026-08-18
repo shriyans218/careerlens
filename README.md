@@ -18,6 +18,7 @@ tech-role matching.
 - [Deployed model — soft-voting ensemble](#deployed-model--soft-voting-ensemble-current)
 - [Second model — tech-role classifier](#second-model--tech-role-skill-classifier-added-later)
 - [Analytics dashboard](#analytics-dashboard)
+- [Skill-gap analysis (trait + technical)](#skill-gap-analysis-trait--technical)
 - [Rerunning the training pipeline](#rerunning-the-training-pipeline-yourself-manual-step-by-step)
 - [Running the backend](#running-the-backend)
 - [Running the frontend](#running-the-frontend)
@@ -35,6 +36,8 @@ careerlens/
 │   └── app/
 │       ├── main.py               API routes
 │       ├── feature_extraction.py   resume -> trait score heuristic
+│       ├── gap_analysis.py         trait + technical skill-gap report logic
+│       ├── resume_parser.py        skill/role entity extraction (also feeds gap_analysis.py)
 │       └── resume_reader.py        PDF/DOCX/TXT text extraction
 └── frontend/                  React (Vite) UI
     └── src/
@@ -118,6 +121,36 @@ present). They are NOT merged into one score — shown as two separate,
 clearly-labeled opinions, since they're different models trained on
 different data with different meanings behind their confidence numbers.
 
+## Skill-gap analysis (trait + technical)
+
+`POST /api/gap-report` compares a resume/assessment against a target
+career on two separate axes:
+
+- **Trait gap** (`gaps`) — the original 8 broad multiple-intelligence
+  scores (Linguistic, Logical-Mathematical, etc.) vs. the target
+  career's average trait profile from CPDS. Useful as a general aptitude
+  signal, but too coarse to say what to actually go learn.
+- **Technical skill gap** (`technical_gaps`) — a second, more concrete
+  layer added on top: it checks which specific technical skills
+  (Python, SQL, Docker, React, AWS, Kubernetes, ...) — the same
+  vocabulary `resume_parser.py` already highlights on the resume view —
+  are common among real resumes in the target category
+  (`resume_categories.csv`, the tech model's dataset) versus which of
+  those skills were actually detected in the user's resume.
+
+  Requires `resume_text` in the request body (the raw resume text
+  returned as part of `/api/predict-resume`'s response) — without it,
+  or for a career with no matching tech-resume category, this field is
+  `null` and the report falls back to trait-only gaps.
+
+  Each entry: `{skill, target_prevalence, resume_has_it, severity}`,
+  sorted missing-first, most-common-in-target first.
+
+The frontend renders this as a two-column "Your Skills / Missing for
+[Career]" checklist card with a skill-alignment bar (`% skills present
+÷ total tracked skills for that career`), alongside the existing
+trait-gap bars.
+
 ## Analytics dashboard
 
 `09_export_dashboard_data.py` exports `model_out/dashboard_data.json`
@@ -178,6 +211,7 @@ Endpoints:
 | `GET` | `/api/dashboard` | model-comparison scores + 2D training-set embedding |
 | `POST` | `/api/predict-resume` | multipart file upload (pdf/docx/txt) → top prediction + top 5, plus `resume_point` and `model_breakdown` |
 | `POST` | `/api/predict-scores` | JSON body with 8 trait scores (0–20 each) → top prediction + top 5 |
+| `POST` | `/api/gap-report` | JSON body: 8 trait scores + `career` + optional `resume_text` → trait-gap report (`gaps`) plus, when `resume_text` is given, a technical skill-gap report (`technical_gaps`) |
 
 ## Running the frontend
 
