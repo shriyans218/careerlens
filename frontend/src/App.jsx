@@ -469,57 +469,61 @@ export default function App() {
                     const haveSkills = gapReport.technical_gaps.filter(
                       (s) => s.resume_has_it
                     );
+                    const alignment = Math.round(
+                      (haveSkills.length / gapReport.technical_gaps.length) * 100
+                    );
                     return (
-                      <>
-                        <div className="gap-group">
-                          <p className="gap-group-title gap-group-missing">
-                            Missing / underdeveloped technical skills
-                          </p>
-                          {missingSkills.length === 0 && (
-                            <p className="gap-source-note">
-                              No common technical skills for this role are missing from your resume.
-                            </p>
-                          )}
-                          <div className="result-chart">
-                            {missingSkills.map((s) => (
-                              <div className="gap-row" key={s.skill}>
-                                <div className="bar-row">
-                                  <span className="bar-label">{s.skill}</span>
-                                  <span className={`gap-badge gap-${s.severity}`}>
-                                    {s.severity}
-                                  </span>
-                                  <span className="bar-pct">
-                                    {Math.round(s.target_prevalence * 100)}% of {gapReport.career} resumes have it
-                                  </span>
-                                </div>
-                              </div>
-                            ))}
+                      <div className="skill-card">
+                        <p className="skill-card-title">
+                          Skill Gap Analysis — {gapReport.career}
+                        </p>
+                        <div className="skill-card-columns">
+                          <div className="skill-col">
+                            <p className="skill-col-title">Your Skills</p>
+                            <ul className="skill-col-list">
+                              {haveSkills.length === 0 && (
+                                <li className="skill-chip-empty">
+                                  None of the common skills for this role were detected yet.
+                                </li>
+                              )}
+                              {haveSkills.map((s) => (
+                                <li className="skill-chip skill-chip-have" key={s.skill}>
+                                  <span className="skill-chip-icon">✓</span>
+                                  {s.skill}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                          <div className="skill-col">
+                            <p className="skill-col-title">Missing for {gapReport.career}</p>
+                            <ul className="skill-col-list">
+                              {missingSkills.length === 0 && (
+                                <li className="skill-chip-empty">
+                                  No common technical skills are missing — nice work.
+                                </li>
+                              )}
+                              {missingSkills.map((s) => (
+                                <li className="skill-chip skill-chip-missing" key={s.skill}>
+                                  <span className="skill-chip-icon">✕</span>
+                                  {s.skill}
+                                </li>
+                              ))}
+                            </ul>
                           </div>
                         </div>
-
-                        <div className="gap-group">
-                          <p className="gap-group-title gap-group-present">
-                            Technical skills you already have
-                          </p>
-                          {haveSkills.length === 0 && (
-                            <p className="gap-source-note">
-                              None of the common skills for this role were detected in your resume yet.
-                            </p>
-                          )}
-                          <div className="result-chart">
-                            {haveSkills.map((s) => (
-                              <div className="gap-row" key={s.skill}>
-                                <div className="bar-row">
-                                  <span className="bar-label">{s.skill}</span>
-                                  <span className="bar-pct">
-                                    {Math.round(s.target_prevalence * 100)}% of {gapReport.career} resumes have it
-                                  </span>
-                                </div>
-                              </div>
-                            ))}
+                        <div className="skill-alignment-bar-wrap">
+                          <div className="skill-alignment-label">
+                            <span>Skill Alignment</span>
+                            <span>{alignment}%</span>
+                          </div>
+                          <div className="skill-alignment-track">
+                            <div
+                              className="skill-alignment-fill"
+                              style={{ width: `${alignment}%` }}
+                            />
                           </div>
                         </div>
-                      </>
+                      </div>
                     );
                   })()}
 
