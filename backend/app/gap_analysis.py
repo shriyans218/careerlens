@@ -131,8 +131,13 @@ def analyze_technical_gap(resume_text: str, career: str, top_n: int = 12):
     career with no matching resume_categories.csv category -- the trait
     gap report above still covers that case).
 
-    Returns a list of up to top_n entries, sorted so the biggest,
-    most-common-in-target, missing-from-resume gaps come first:
+    Returns a list of entries, missing skills first (highest target
+    prevalence first) capped at top_n, followed by the skills the resume
+    already has (also highest prevalence first) capped at top_n. The two
+    groups are capped independently -- otherwise a resume that already
+    has every high-prevalence skill would have its "have" entries pushed
+    off the end and every truncated row would misleadingly show as
+    "missing":
       [{skill, target_prevalence (0-1), resume_has_it, severity}, ...]
     """
     if not resume_text or not resume_text.strip():
@@ -148,7 +153,7 @@ def analyze_technical_gap(resume_text: str, career: str, top_n: int = 12):
         if e["label"] == "SKILL"
     }
 
-    rows = []
+    missing, have = [], []
     for skill, prevalence in freq[career].items():
         if prevalence <= 0:
             continue  # skill never appears in this category's resumes at all
@@ -161,18 +166,18 @@ def analyze_technical_gap(resume_text: str, career: str, top_n: int = 12):
             severity = "medium"
         else:
             severity = "low"
-        rows.append({
+        row = {
             "skill": skill,
             "target_prevalence": prevalence,
             "resume_has_it": has_it,
             "severity": severity,
-        })
+        }
+        (have if has_it else missing).append(row)
 
-    # Missing skills first (biggest prevalence first), then skills already
-    # present, so the frontend can split into "missing" vs "have" groups
-    # the same way it already does for the trait gaps.
-    rows.sort(key=lambda r: (r["resume_has_it"], -r["target_prevalence"]))
-    return rows[:top_n]
+    missing.sort(key=lambda r: -r["target_prevalence"])
+    have.sort(key=lambda r: -r["target_prevalence"])
+
+    return missing[:top_n] + have[:top_n]
 
 
 # A few representative keywords per trait, reused from feature_extraction's
