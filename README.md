@@ -143,8 +143,13 @@ career on two separate axes:
   or for a career with no matching tech-resume category, this field is
   `null` and the report falls back to trait-only gaps.
 
-  Each entry: `{skill, target_prevalence, resume_has_it, severity}`,
-  sorted missing-first, most-common-in-target first.
+  Each entry: `{skill, target_prevalence, resume_has_it, severity}`.
+  Missing and already-have skills are ranked and capped independently
+  (top 12 of each, most-common-in-target first) before being combined —
+  an earlier version capped the merged list instead, which silently
+  dropped a resume's matched skills off the end whenever it had more
+  than ~12 combined entries, making a strong resume look like it had
+  zero matching skills. Fixed in `gap_analysis.py`.
 
 The frontend renders this as a two-column "Your Skills / Missing for
 [Career]" checklist card with a skill-alignment bar (`% skills present
