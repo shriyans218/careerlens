@@ -157,6 +157,10 @@ def analyze_technical_gap(resume_text: str, career: str, top_n: int = 12):
     for skill, prevalence in freq[career].items():
         if prevalence <= 0:
             continue  # skill never appears in this category's resumes at all
+        if skill.lower() == career.lower():
+            continue  # e.g. "Data Science" showing as a "missing skill" for
+            # the Data Science career -- that's the category label matching
+            # itself as a keyword, not a real skill gap
         has_it = skill.lower() in resume_skills
         if has_it:
             severity = "have"
