@@ -25,6 +25,12 @@ tech-role matching.
 - [Deploying](#deploying)
 - [Known limitation](#known-limitation--be-upfront-about-this)
 
+ ## Docs
+
+- [API Reference](docs/api-reference.md)
+- [Dataset Cards](docs/dataset-cards/)
+- [Model Cards](docs/model-cards/)
+
 ## What's in here
 
 ```
