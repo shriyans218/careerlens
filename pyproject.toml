@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "careerlens"
+version = "0.1.0"
+description = "AI-powered career-fit predictor: trait-based and resume-based career prediction with skill-gap analysis."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Shriyans R" }]
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "python-multipart",
+    "pdfplumber",
+    "python-docx",
+    "scikit-learn==1.8.0",
+    "xgboost",
+    "joblib",
+    "numpy",
+    "pandas",
+    "click>=8.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "httpx", "pytest-cov"]
+
+[project.scripts]
+careerlens = "careerlens.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["careerlens*"]
+
+[tool.setuptools.package-data]
+careerlens = ["model_out/*.joblib", "data/*.csv"]
