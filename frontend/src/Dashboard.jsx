@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import ApertureMark from "./ApertureMark.jsx";
+import CohortAnalytics from "./CohortAnalytics.jsx";
 
 /**
  * Analytics Dashboard — shows REAL data returned by the backend:
@@ -8,6 +9,8 @@ import ApertureMark from "./ApertureMark.jsx";
  *     GET /api/dashboard.
  *   - embeddings: a real t-SNE projection of the training set (3600
  *     resumes' worth of trait vectors), also from /api/dashboard.
+ *   - cohort_stats: aggregate counts of predicted careers across all
+ *     users so far, served via GET /api/cohort-stats.
  *   - the current user's own resume, plotted as a highlighted point
  *     using `result.resume_point` (a real PCA projection of THEIR
  *     actual extracted trait vector, computed server-side) and their
@@ -239,6 +242,14 @@ export default function Dashboard({ onBack, result, apiBase }) {
               <span className="dash-badge">from actual grid-search evaluation</span>
             </div>
             <ModelComparisonChart models={data.model_comparison} />
+          </section>
+
+          <section className="dash-card dash-card-wide">
+            <div className="dash-card-head">
+              <h3>Cohort Analytics — Most Predicted Careers</h3>
+              <span className="dash-badge">across all users</span>
+            </div>
+            <CohortAnalytics apiBase={apiBase} />
           </section>
 
           {userTop5 && (
