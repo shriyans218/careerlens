@@ -7,6 +7,7 @@ Run with: uvicorn app.main:app --reload --port 8000
 """
 import json
 import os
+from collections import Counter
 from pathlib import Path
 
 import joblib
@@ -58,6 +59,21 @@ if DASHBOARD_PROJECTION_PATH.is_file():
 # predictions still work with just the trait model.
 TECH_MODEL_PATH = PROJECT_ROOT / "model_out" / "careerlens_tech_model.joblib"
 tech_bundle = joblib.load(TECH_MODEL_PATH) if TECH_MODEL_PATH.is_file() else None
+
+# Cohort log: append-only record of predicted-career + source, used to
+# power aggregate "cohort analytics" across everyone who has used the
+# tool. Intentionally minimal (no PII, no resume content stored here).
+COHORT_LOG_PATH = PROJECT_ROOT / "model_out" / "cohort_log.json"
+
+
+def _log_prediction(career: str, source: str):
+    try:
+        log = json.loads(COHORT_LOG_PATH.read_text()) if COHORT_LOG_PATH.is_file() else []
+    except Exception:
+        log = []
+    log.append({"career": career, "source": source})
+    COHORT_LOG_PATH.write_text(json.dumps(log))
+
 
 app = FastAPI(title="CareerLens API")
 
@@ -134,6 +150,23 @@ def get_dashboard_data():
     return dashboard_data
 
 
+@app.get("/api/cohort-stats")
+def cohort_stats():
+    """Aggregate counts of predicted careers across all users so far.
+    Backed by an append-only local log (model_out/cohort_log.json) —
+    no per-user identity or resume content is stored, only the
+    predicted career name and which prediction path produced it."""
+    if not COHORT_LOG_PATH.is_file():
+        return {"total": 0, "top_careers": [], "by_source": {}}
+    log = json.loads(COHORT_LOG_PATH.read_text())
+    career_counts = Counter(entry["career"] for entry in log)
+    source_counts = Counter(entry["source"] for entry in log)
+    top_careers = [
+        {"career": c, "count": n} for c, n in career_counts.most_common(10)
+    ]
+    return {"total": len(log), "top_careers": top_careers, "by_source": dict(source_counts)}
+
+
 def project_resume_point(feature_vector: list):
     """Projects this resume's real 8-dim trait vector into the same 2D
     space as the training-set t-SNE plot, using the PCA(2) fit on the
@@ -164,6 +197,8 @@ async def predict_resume(file: UploadFile = File(...)):
     parsed_entities = parse_resume_entities(text)
     resume_point = project_resume_point(vector)
     model_breakdown = predict_per_model(vector)  # dashboard-only, doesn't touch predictions above
+
+    _log_prediction(predictions[0]["career"], "resume")
 
     return {
         "top_prediction": predictions[0]["career"],
@@ -197,6 +232,7 @@ def predict_scores(scores: ManualScores):
     ]
     predictions = predict_top_k(ordered, k=5)
     point = project_resume_point(ordered)
+    _log_prediction(predictions[0]["career"], "assessment")
     return {"top_prediction": predictions[0]["career"], "top_5": predictions, "resume_point": point}
 
 
