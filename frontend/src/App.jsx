@@ -1,6 +1,8 @@
 import React, { useState, useCallback, useEffect } from "react";
 import ApertureMark from "./ApertureMark.jsx";
 import Dashboard from "./Dashboard.jsx";
+import CareerComparison from "./CareerComparison.jsx";
+import { exportResultToPDF } from "./pdfExport.js";
 import "./App.css";
 import "./Dashboard.css";
 
@@ -68,6 +70,7 @@ export default function App() {
   const [roleInput, setRoleInput] = useState("");
   const [careerOptions, setCareerOptions] = useState([]);
   const [gapErrorMsg, setGapErrorMsg] = useState("");
+  const [showCompare, setShowCompare] = useState(false);
 
   useEffect(() => {
     fetch(`${API_BASE}/api/careers`)
@@ -131,6 +134,7 @@ export default function App() {
     setGapReport(null);
     setGapStatus("idle");
     setRoleInput("");
+    setShowCompare(false);
   }
 
   async function fetchGapReport(career) {
@@ -172,9 +176,14 @@ export default function App() {
           <span className="wordmark">CareerLens</span>
         </div>
         {status === "done" && result && (
-          <button className="dash-link" onClick={() => setView("dashboard")}>
-            View Analytics Dashboard
-          </button>
+          <div className="topbar-actions">
+            <button className="dash-link" onClick={() => setView("dashboard")}>
+              View Analytics Dashboard
+            </button>
+            <button className="dash-link" onClick={() => setShowCompare(true)}>
+              Compare Careers
+            </button>
+          </div>
         )}
       </header>
 
@@ -547,13 +556,27 @@ export default function App() {
               )}
             </div>
 
-            <button className="secondary-btn" onClick={reset}>
-              Try again
-            </button>
+            {showCompare && (
+              <CareerComparison
+                apiBase={API_BASE}
+                traitScores={result.trait_scores || scores}
+                resumeText={result.resume_text}
+                careerOptions={careerOptions}
+                onClose={() => setShowCompare(false)}
+              />
+            )}
+
+            <div className="result-actions">
+              <button className="secondary-btn" onClick={() => exportResultToPDF(result, gapReport)}>
+                Export PDF
+              </button>
+              <button className="secondary-btn" onClick={reset}>
+                Try again
+              </button>
+            </div>
           </div>
         )}
       </main>
     </div>
-
   );
 }
