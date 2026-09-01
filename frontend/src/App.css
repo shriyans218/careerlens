@@ -704,3 +704,44 @@ input[type="range"]::-webkit-slider-thumb {
   background: linear-gradient(90deg, var(--amber-dim), var(--amber));
   transition: width 0.4s ease;
 }
+.compare-panel {
+  margin-top: 24px;
+  padding: 20px;
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+}
+.compare-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.compare-inputs {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.compare-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.compare-col {
+  padding: 14px;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+}
+.cohort-panel {
+  padding-top: 8px;
+}
+.topbar-actions {
+  display: flex;
+  gap: 10px;
+}
+.result-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 16px;
+}
