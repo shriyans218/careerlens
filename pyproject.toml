@@ -28,11 +28,11 @@ dependencies = [
 dev = ["pytest", "httpx", "pytest-cov"]
 
 [project.scripts]
-careerlens = "careerlens.cli:main"
+careerlens = "backend.app.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["careerlens*"]
+include = ["backend*"]
 
 [tool.setuptools.package-data]
-careerlens = ["model_out/*.joblib", "data/*.csv"]
+"backend.app" = []
